@@ -19,7 +19,7 @@ raw_stream = spark.readStream.format("kafka") \
     .option("startingOffsets", "earliest") \
     .load()
 
-events_str = raw_stream.selectExpr("CAST(key AS STRING) AS key", "CAST(value AS STRING) AS json_value")
+events_str = raw_stream.selectExpr("CAST(key AS STRING) AS key", "CAST(value AS STRING) AS json_value", "timestamp AS kafka_ts", "partition AS kafka_partition", "offset AS kafka_offset")
 
 event_schema = StructType([
     StructField("event_id", StringType(), True),
@@ -33,9 +33,8 @@ event_schema = StructType([
 ])
 
 parsed = events_str.select(
-    from_json(col("json_value"), event_schema).alias("data")
-
-).select("data.*")
+    from_json(col("json_value"), event_schema).alias("data"), col("kafka_ts"), col("kafka_partition"), col("kafka_offset")
+).select("data.*", "kafka_ts", "kafka_partition", "kafka_offset")
 
 parsed.printSchema()
 
