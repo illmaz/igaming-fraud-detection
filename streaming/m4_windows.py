@@ -1,3 +1,4 @@
+import os
 from delta import configure_spark_with_delta_pip
 from pyspark.sql import SparkSession, functions as F
 from datetime import timedelta
@@ -20,19 +21,25 @@ silver = spark.readStream \
 silver_watermarked = silver.withWatermark("event_ts", "15 minutes")
 
 # --- flush event setup ---
-max_ts = spark.read.format("delta").load("data/delta/silver") \
-    .agg(F.max("event_ts")).collect()[0][0]
+flush_path = "data/delta/_flush_source"
 
-flush_ts = max_ts + timedelta(days=1)
+# _flush_source is written once. If silver is regenerated, delete
+# data/delta/_flush_source together with the M4 checkpoint, or the
+# flush timestamp will be stale.
+if not os.path.exists(flush_path):
+    max_ts = spark.read.format("delta").load("data/delta/silver") \
+        .agg(F.max("event_ts")).collect()[0][0]
 
-flush_row = spark.createDataFrame(
-    [("__flush__", "login", flush_ts, 0.0)],
-    ["player_id", "event_type", "event_ts", "amount"]
-)
+    flush_ts = max_ts + timedelta(days=1)
 
-flush_row.write.format("delta").mode("overwrite").save("data/delta/_flush_source")
+    flush_row = spark.createDataFrame(
+        [("__flush__", "login", flush_ts, 0.0)],
+        ["player_id", "event_type", "event_ts", "amount"]
+    )
 
-flush_stream = spark.readStream.format("delta").load("data/delta/_flush_source") \
+    flush_row.write.format("delta").mode("overwrite").save(flush_path)
+
+flush_stream = spark.readStream.format("delta").load(flush_path) \
     .withWatermark("event_ts", "15 minutes")
 silver_with_flush = silver_watermarked.select("player_id", "event_type", "event_ts", "amount") \
     .union(flush_stream)
@@ -75,8 +82,3 @@ query = windowed.writeStream \
 query.awaitTermination()
 
 print(spark.read.format("delta").load("data/delta/features_windowed").count())
-
-spark.read.format("delta").load("data/delta/features_windowed") \
-    .filter(F.col("player_id") == "f20b64da-8a5b-4775-8bc1-2d748cebe0db") \
-    .orderBy("window_start") \
-    .show(50, truncate=False)
