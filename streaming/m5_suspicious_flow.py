@@ -17,6 +17,8 @@ builder = (
 
 spark = configure_spark_with_delta_pip(builder).getOrCreate()
 
+# Read the features table and compute the deposit distribution.
+
 features = (
     spark.read
     .format("delta")
@@ -44,6 +46,8 @@ positive_deposits \
     .describe() \
     .show()
 
+# Define the thresholds for suspicious flow detection.
+
 wager_ratio_threshold = 1.0
 withdrawal_ratio_threshold = 0.70
 
@@ -55,6 +59,8 @@ print("\n--- SUSPICIOUS FLOW DETECTION ---")
 print(f"Wager ratio:       < {wager_ratio_threshold}")
 print(f"Withdrawal ratio:  > {withdrawal_ratio_threshold}")
 print(f"Deposit floor:     >= {deposit_floor:.2f}")
+
+# Read the features table as a streaming DataFrame and compute the wager and withdrawal ratios.
 
 df = (
     spark.readStream
@@ -78,6 +84,8 @@ df3 = df2.withColumn(
         F.col("total_withdrawals") / F.col("total_deposit")
     )
 )
+
+# Filter for suspicious flows based on the defined thresholds.
 
 suspicious = df3.filter(
     (F.col("wager_ratio") < wager_ratio_threshold)
