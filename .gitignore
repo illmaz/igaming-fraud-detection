@@ -10,3 +10,4 @@ derby.log
 .DS_Store
 .idea/
 playbooks/
+*.ipynb
