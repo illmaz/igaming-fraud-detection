@@ -107,11 +107,23 @@ suspicious_output = suspicious.select(
     "last_event_ts"
 )
 
+# Persist detections so M7 can read them instead of rebuilding the rule.
+# One row per flagged window; console output is kept for watching the stream live.
+
+def process_batch(batch_df, batch_id):
+    count = batch_df.count()
+    print(f"batch {batch_id}: {count} flagged windows")
+    batch_df.show(truncate=False)
+    if count > 0:
+        batch_df.withColumn("detected_at", F.current_timestamp()) \
+            .write.format("delta").mode("append") \
+            .save("data/delta/flagged_suspicious_flow")
+
 query = (
     suspicious_output.writeStream
-    .format("console")
+    .foreachBatch(process_batch)
     .outputMode("append")
-    .option("truncate", False)
+    .option("checkpointLocation", "data/checkpoints/m5_suspicious_flow")
     .trigger(availableNow=True)
     .start()
 )

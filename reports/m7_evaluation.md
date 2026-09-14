@@ -16,22 +16,22 @@ A player counts as flagged if the rule fired for them in any window.
 
 | rule | tp | fp | fn | precision | recall |
 |------|----|----|----|-----------|--------|
-| wager_ratio_alone | 7 | 176 | 0 | 0.04 | 1.00 |
-| withdrawal_ratio_alone | 7 | 10 | 0 | 0.41 | 1.00 |
-| m5_combined | 7 | 7 | 0 | 0.50 | 1.00 |
+| wager_ratio_alone | 7 | 181 | 0 | 0.04 | 1.00 |
+| withdrawal_ratio_alone | 7 | 6 | 0 | 0.54 | 1.00 |
+| m5_combined | 7 | 4 | 0 | 0.64 | 1.00 |
 | m6_bonus_abuse | 5 | 0 | 3 | 1.00 | 0.62 |
-| pipeline_combined | 12 | 7 | 3 | 0.63 | 0.80 |
+| pipeline_combined | 12 | 4 | 3 | 0.75 | 0.80 |
 
 Written to `data/delta/evaluation_metrics`.
 
 ## M5: suspicious flow
 
-Caught all 7 real cases, but flagged 7 innocent players alongside them. Half
-the alert queue is noise.
+Caught all 7 real cases, but flagged 4 innocent players alongside them. More
+than a third of the alert queue is noise.
 
-The ablation is the more useful result. Wager ratio alone flags 176 false
+The ablation is the more useful result. Wager ratio alone flags 181 false
 positives and is close to worthless by itself. Withdrawal ratio alone does
-better at 10. Only the two conditions together bring false positives down to 7.
+better at 6. Only the two conditions together bring false positives down to 4.
 
 Two mediocre signals combined beat the stronger single signal. That is the
 justification for the rule using both conditions rather than whichever one
@@ -40,16 +40,10 @@ scored best on its own.
 ### Where the numbers are flattered
 
 Withdrawal ratio looks like a strong separator because withdrawals are rare in
-this dataset. Only 149 withdrawal events exist across 10,281 rows, and most
+this dataset. Only 141 withdrawal events exist across 9,787 rows, and most
 normal players never withdraw at all, because the house edge drains their
 balance first. A feature that scores well on an axis where most of the
 population has no data is not a feature that has been tested.
-
-At player level the separation is close to perfect. At window level it drops to
-0.41 precision, because a window is a narrow slice and one coincidental
-deposit-then-withdraw pattern stands out more when there is less data around it
-to smooth it. That gap between player level and window level is a real property
-of window granularity detection, not a mistake in the rule.
 
 ## M6: bonus abuse
 

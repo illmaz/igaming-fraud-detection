@@ -16,6 +16,11 @@ class GenConfig:
     seed: int = 42
     n_players: int = 300
     days_span: int = 7                 # simulated activity window
+    # Start of the simulated window, as an ISO date. Arbitrary and frozen for
+    # reproducibility only: session timing weights days by weekday, so deriving
+    # this from "now" would make the whole stream depend on the day the script
+    # runs, despite the fixed seed. The date itself means nothing.
+    start_date: str = "2026-01-05"
     out_dir: str = "data/raw"
 
     # -------------------------------------------------------------- population

@@ -27,6 +27,14 @@ from pathlib import Path
 from config import GenConfig
 
 
+# --------------------------------------------------------------------- ids
+
+def _uuid(rng: random.Random) -> str:
+    """A v4-shaped UUID drawn from the seeded rng. uuid.uuid4() reads os.urandom,
+    which would make every id differ between runs despite the fixed seed."""
+    return str(uuid.UUID(int=rng.getrandbits(128), version=4))
+
+
 # --------------------------------------------------------------------- players
 
 def make_players(cfg: GenConfig, rng: random.Random):
@@ -42,9 +50,9 @@ def make_players(cfg: GenConfig, rng: random.Random):
     # normal players (most with modest, unremarkable behavior)
     for _ in range(n_normal - n_high_roller):
         players.append({
-            "player_id": str(uuid.uuid4()),
-            "device_id": str(uuid.uuid4()),
-            "payment_method_id": str(uuid.uuid4()),
+            "player_id": _uuid(rng),
+            "device_id": _uuid(rng),
+            "payment_method_id": _uuid(rng),
             "profile": "normal",
             "fraud_type": None,
         })
@@ -53,9 +61,9 @@ def make_players(cfg: GenConfig, rng: random.Random):
     # but NOT fraud. This is your overlap noise against suspicious_flow - don't skip it.
     for _ in range(n_high_roller):
         players.append({
-            "player_id": str(uuid.uuid4()),
-            "device_id": str(uuid.uuid4()),
-            "payment_method_id": str(uuid.uuid4()),
+            "player_id": _uuid(rng),
+            "device_id": _uuid(rng),
+            "payment_method_id": _uuid(rng),
             "profile": "high_roller",
             "fraud_type": None,
         })
@@ -64,9 +72,9 @@ def make_players(cfg: GenConfig, rng: random.Random):
     for _ in range(n_suspicious):
         subtle = rng.random() < cfg.subtle_fraud_pct
         players.append({
-            "player_id": str(uuid.uuid4()),
-            "device_id": str(uuid.uuid4()),
-            "payment_method_id": str(uuid.uuid4()),
+            "player_id": _uuid(rng),
+            "device_id": _uuid(rng),
+            "payment_method_id": _uuid(rng),
             "profile": "suspicious_flow_subtle" if subtle else "suspicious_flow",
             "fraud_type": "suspicious_flow",
         })
@@ -75,12 +83,12 @@ def make_players(cfg: GenConfig, rng: random.Random):
     remaining = n_bonus
     while remaining > 0:
         cluster_size = min(remaining, rng.randint(*cfg.bonus_abuse_cluster_size))
-        shared_device = str(uuid.uuid4())
+        shared_device = _uuid(rng)
         for _ in range(cluster_size):
             players.append({
-                "player_id": str(uuid.uuid4()),
+                "player_id": _uuid(rng),
                 "device_id": shared_device,          # <-- the signal
-                "payment_method_id": str(uuid.uuid4()),
+                "payment_method_id": _uuid(rng),
                 "profile": "bonus_abuse",
                 "fraud_type": "bonus_abuse",
             })
@@ -142,7 +150,7 @@ class PlayerSim:
     # -- raw emit -----------------------------------------------------------
     def emit(self, t: datetime, event_type: str, amount=None):
         self.events.append({
-            "event_id": str(uuid.uuid4()),
+            "event_id": _uuid(self.rng),
             "event_type": event_type,
             "player_id": self.p["player_id"],
             "device_id": self.p["device_id"],
@@ -389,9 +397,8 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     players = make_players(cfg, rng)
-    # floored to the hour so a rerun with the same seed reproduces the same shape
-    start_ts = (datetime.utcnow() - timedelta(days=cfg.days_span)).replace(
-        minute=0, second=0, microsecond=0)
+    # fixed date from config, never "now": with the seed this makes reruns identical
+    start_ts = datetime.fromisoformat(cfg.start_date)
 
     stats = {"session_minutes": [], "bets_per_session": []}
     all_events = []

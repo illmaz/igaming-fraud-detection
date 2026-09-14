@@ -38,13 +38,6 @@ result.groupBy("fraud_type").count().show()
 
 features = spark.read.format("delta").load("data/delta/features_windowed")
 
-positive_deposits = features.filter(F.col("total_deposit") > 0)
-
-quantiles = positive_deposits.approxQuantile("total_deposit", [0.75], 0.01)
-deposit_floor = quantiles[0]
-
-print(deposit_floor)
-
 scored = (
     features
     .withColumn(
@@ -61,11 +54,9 @@ scored = (
 
 scored.select("player_id", "total_deposit", "total_withdrawals", "withdrawal_ratio").show(5)
 
-suspicious = scored.filter(
-    (F.col("wager_ratio") < 1.0)
-    & (F.col("withdrawal_ratio") > 0.70)
-    & (F.col("total_deposit") >= deposit_floor)
-)
+# M5's detections are read from the table it persists, not re-derived here.
+# The rule lives in one place: streaming/m5_suspicious_flow.py.
+suspicious = spark.read.format("delta").load("data/delta/flagged_suspicious_flow")
 
 print(suspicious.count())
 
