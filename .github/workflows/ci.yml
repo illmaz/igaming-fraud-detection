@@ -21,3 +21,6 @@ jobs:
       
       - name: Compile check
         run: python -m compileall -q batch streaming generator producers scripts
+
+      - name: Run tests
+        run: python -m pytest tests/ -v

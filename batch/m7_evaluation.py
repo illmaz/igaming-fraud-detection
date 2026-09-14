@@ -1,5 +1,6 @@
 from delta import configure_spark_with_delta_pip
 from pyspark.sql import SparkSession, functions as F
+from scoring import score
 
 builder = (
     SparkSession.builder
@@ -14,12 +15,6 @@ builder = (
         "org.apache.spark.sql.delta.catalog.DeltaCatalog"
     )
 )
-def score(df, flag_col, target):
-    tp = df.filter((F.col(flag_col) == True) & (F.col("fraud_type") == target)).count()
-    fp = df.filter((F.col(flag_col) == True) & (F.col("fraud_type") != target)).count()
-    fn = df.filter((F.col(flag_col) == False) & (F.col("fraud_type") == target)).count()
-    return tp, fp, fn
-
 spark = configure_spark_with_delta_pip(builder).getOrCreate()
 
 df = (
